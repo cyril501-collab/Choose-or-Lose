@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3B0D1C">
+<title>Choose or Lose</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Libre+Franklin:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --velours:#3B0D1C; --velours-2:#561529; --laiton:#D4A24C; --laiton-pale:#EBCB8B;
+  --ivoire:#F5ECE0; --ivoire-2:#E2D3C1; --brume:#B9A396;
+  --bg:var(--velours); --surface:var(--velours-2); --ink:var(--ivoire); --ink-2:var(--brume);
+  --accent:var(--laiton); --line:rgba(245,236,224,.16);
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"Libre Franklin",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F4E9E3; --surface:#FFFFFF; --ink:#3B0D1C; --ink-2:#7A5560;
+    --accent:#9C6A14; --line:rgba(59,13,28,.14);
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F4E9E3; --surface:#FFFFFF; --ink:#3B0D1C; --ink-2:#7A5560;
+  --accent:#9C6A14; --line:rgba(59,13,28,.14);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+main{max-width:520px;margin:0 auto;padding:20px 20px 120px}
+h1,h2,.marquee-title{font-family:var(--display);letter-spacing:.01em;margin:0}
+h1{font-size:2.1rem;font-weight:900;line-height:1}
+h2{font-size:1.5rem;font-weight:800;margin:28px 0 10px}
+p{margin:0 0 12px}
+.muted{color:var(--ink-2);font-size:.92rem}
+button,a.btn{font:inherit;cursor:pointer;border:0;border-radius:999px;padding:14px 20px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);color:#2A0812}
+.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1 1 auto}
+
+header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:22px}
+header.top .sub{font-size:.85rem;color:var(--ink-2)}
+
+/* Marquee : l'élément signature */
+.marquee{position:relative;border:2px solid var(--accent);border-radius:14px;padding:26px 20px 22px;text-align:center;background:var(--surface);overflow:hidden}
+.marquee::before,.marquee::after{content:"";position:absolute;left:10px;right:10px;height:6px;background:radial-gradient(circle,var(--accent) 2px,transparent 2.5px) 0 0/14px 6px repeat-x;opacity:.75}
+.marquee::before{top:8px}.marquee::after{bottom:8px}
+.marquee-title{font-size:clamp(2.4rem,11vw,3.6rem);font-weight:900;line-height:.95;text-transform:none;min-height:2em;display:flex;align-items:center;justify-content:center;word-break:break-word}
+.marquee-meta{margin-top:10px;color:var(--ink-2);font-size:.92rem}
+.marquee-pitch{margin:14px auto 0;max-width:36ch;font-size:1rem}
+.shuffling .marquee-title{opacity:.55}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:.8rem;margin:2px}
+
+.draw{width:100%;margin-top:18px;font-family:var(--display);font-size:1.6rem;font-weight:800;padding:18px;letter-spacing:.02em}
+.actions{margin-top:12px}
+.actions button,.actions a{font-size:.95rem;padding:12px 14px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:9px 14px;min-height:42px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#2A0812}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:4px;background:var(--bg);border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+.tabs button{flex:1;max-width:170px;background:transparent;color:var(--ink-2);border-radius:12px;padding:8px;min-height:52px;flex-direction:column;gap:0;font-size:.8rem}
+.tabs button span{font-size:1.3rem;line-height:1}
+.tabs button[aria-current="page"]{color:var(--ink);background:var(--surface)}
+
+label.field{display:block;margin:14px 0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=text]{width:100%;font:inherit;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.list{list-style:none;padding:0;margin:0}
+.list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.list li button{padding:6px 12px;min-height:36px;font-size:.85rem}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+
+<!-- Écran d'accueil / réglages des goûts -->
+<section id="onboarding" hidden>
+  <h1>Choose or Lose</h1>
+  <p class="muted" style="margin-top:10px">Trois réglages et c'est fini. Vous pourrez les changer à tout moment.</p>
+
+  <h2>Vos genres préférés</h2>
+  <div class="chips" id="genreChips"></div>
+
+  <h2>Votre abonnement</h2>
+  <p class="muted">Cochez les chaînes et services inclus dans votre offre.</p>
+  <div class="chips" id="channelChips"></div>
+  <div class="row" style="margin-top:10px">
+    <input type="text" id="customChannel" placeholder="Ajouter une chaîne (ex. Ciné+ OCS Frisson)" aria-label="Ajouter une chaîne">
+  </div>
+  <button class="ghost" id="addChannel" style="margin-top:8px">Ajouter cette chaîne</button>
+
+  <h2>Durée maximum</h2>
+  <label class="field"><span id="durLabel"></span>
+    <input type="range" id="duration" min="90" max="200" step="10">
+  </label>
+
+  <button class="primary draw" id="saveOnboarding">C'est parti</button>
+</section>
+
+<!-- Tirage film -->
+<section id="viewFilm" hidden>
+  <header class="top">
+    <div><h1>Ce soir</h1><div class="sub" id="countLine"></div></div>
+  </header>
+  <div class="marquee" id="marquee" aria-live="polite">
+    <div class="marquee-title" id="mTitle">?</div>
+    <div class="marquee-meta" id="mMeta">Appuyez sur le bouton, on choisit pour vous.</div>
+    <p class="marquee-pitch" id="mPitch"></p>
+    <div id="mTags"></div>
+  </div>
+  <button class="primary draw" id="drawFilm">Surprends-moi</button>
+  <div class="row actions" id="filmActions" hidden>
+    <a class="btn primary" id="watchBtn" href="https://www.canalplus.com/" target="_blank" rel="noopener">On regarde</a>
+    <button class="ghost" id="seenBtn">Déjà vu</button>
+    <button class="ghost" id="nopeBtn">Pas pour moi</button>
+  </div>
+</section>
+
+<!-- Tirage chaîne -->
+<section id="viewChannel" hidden>
+  <header class="top"><div><h1>Zapping</h1><div class="sub">Une chaîne de votre abonnement, au hasard.</div></div></header>
+  <div class="marquee">
+    <div class="marquee-title" id="cTitle">?</div>
+    <div class="marquee-meta" id="cMeta"></div>
+  </div>
+  <button class="primary draw" id="drawChannel">Zappe pour moi</button>
+  <a class="btn ghost" href="https://www.canalplus.com/" target="_blank" rel="noopener" style="width:100%;margin-top:10px">Ouvrir Canal+</a>
+</section>
+
+<!-- Réglages -->
+<section id="viewSettings" hidden>
+  <header class="top"><div><h1>Réglages</h1></div></header>
+  <button class="ghost" id="editTastes" style="width:100%">Modifier mes goûts et mon abonnement</button>
+
+  <h2>Films écartés</h2>
+  <p class="muted">Ceux que vous avez déjà vus ou refusés. Ils ne seront plus tirés.</p>
+  <ul class="list" id="excludedList"></ul>
+
+  <h2>Catalogue</h2>
+  <p class="muted" id="catalogInfo"></p>
+
+  <h2>Thème</h2>
+  <div class="chips" id="themeChips"></div>
+
+  <h2>Tout effacer</h2>
+  <button class="ghost" id="resetAll">Réinitialiser l'application</button>
+</section>
+
+</main>
+
+<nav class="tabs" id="tabs" hidden aria-label="Navigation">
+  <button data-view="viewFilm" aria-current="page"><span>🎬</span>Film</button>
+  <button data-view="viewChannel"><span>📺</span>Chaîne</button>
+  <button data-view="viewSettings"><span>⚙️</span>Réglages</button>
+</nav>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ---------- Catalogue : instantané du 7 octobre 2026 ---------- */
+const CATALOG_DATE = "7 octobre 2026";
+const GENRES = {
+  action:"Action", aventure:"Aventure", comedie:"Comédie", drame:"Drame", thriller:"Thriller",
+  horreur:"Horreur", sf:"Science-fiction", fantastique:"Fantastique", romance:"Romance",
+  famille:"Famille", histoire:"Historique", policier:"Policier"
+};
+// t=titre, y=année, g=genres, d=durée (min), p=résumé, c=chaîne requise, from=date de disponibilité
+const FILMS = [
+ {t:"Une bataille après l'autre",y:2025,g:["action","comedie","thriller"],d:162,p:"Un ancien révolutionnaire sort de sa retraite quand sa fille disparaît. Paul Thomas Anderson, Leonardo DiCaprio."},
+ {t:"Sinners",y:2025,g:["horreur","drame","fantastique"],d:137,p:"Deux jumeaux ouvrent un juke joint dans le Mississippi des années 30, et la nuit attire des visiteurs affamés."},
+ {t:"Évanouis",y:2025,g:["horreur","thriller"],d:128,p:"Une nuit, presque toute une classe disparaît à la même heure. Une petite ville cherche pourquoi."},
+ {t:"F1® Le Film",y:2025,g:["action","drame"],d:155,p:"Un pilote vétéran revient en Formule 1 pour épauler un jeune prodige. Brad Pitt au volant."},
+ {t:"The Mask",y:1994,g:["comedie","fantastique"],d:101,p:"Un employé de banque timide trouve un masque qui le transforme en tornade cartoon. Jim Carrey."},
+ {t:"Superman",y:2025,g:["action","aventure","sf"],d:129,p:"Le nouveau Superman de James Gunn, entre Metropolis, Lex Luthor et un chien très turbulent."},
+ {t:"Jurassic World : Renaissance",y:2025,g:["action","aventure","sf"],d:134,p:"Une équipe part prélever l'ADN des plus grands dinosaures sur une île interdite."},
+ {t:"Mulholland Drive",y:2001,g:["thriller","drame"],d:147,p:"À Hollywood, une actrice débutante aide une amnésique à retrouver qui elle est. Le labyrinthe de David Lynch."},
+ {t:"Pris au piège – Caught Stealing",y:2025,g:["action","comedie","policier"],d:107,p:"Un ex-baseballeur garde le chat de son voisin et se retrouve traqué par tous les gangsters de New York."},
+ {t:"Valeur sentimentale",y:2025,g:["drame"],d:133,p:"Deux sœurs retrouvent leur père cinéaste, absent depuis des années, qui veut tourner dans la maison familiale."},
+ {t:"Le Seigneur des anneaux : La Communauté de l'anneau",y:2001,g:["fantastique","aventure"],d:178,p:"Un hobbit et ses compagnons partent détruire un anneau maléfique. Le début de l'épopée."},
+ {t:"Eternal Sunshine of the Spotless Mind",y:2004,g:["romance","drame","sf"],d:108,p:"Après une rupture, un homme fait effacer sa compagne de sa mémoire, puis tente de la sauver de l'oubli."},
+ {t:"Materialists",y:2025,g:["romance","comedie","drame"],d:116,p:"Une entremetteuse new-yorkaise hésite entre un homme parfait sur le papier et son ex fauché.",c:"CANAL+ BOX OFFICE"},
+ {t:"Life of Chuck",y:2024,g:["drame","fantastique"],d:111,p:"La vie d'un homme ordinaire racontée à l'envers, d'après Stephen King."},
+ {t:"Dead of Winter",y:2025,g:["thriller"],d:98,p:"Seule sur un lac gelé du Minnesota, une femme tombe sur un enlèvement. Emma Thompson."},
+ {t:"Dracula",y:2025,g:["fantastique","romance","horreur"],d:129,p:"Luc Besson revisite le comte maudit, qui traverse les siècles pour retrouver son amour perdu.",c:"CANAL+ BOX OFFICE"},
+ {t:"L'Amour ouf",y:2024,g:["romance","drame","policier"],d:166,p:"Deux ados tombent fous amoureux dans le Nord des années 80, puis la violence les sépare. Gilles Lellouche."},
+ {t:"Intouchables",y:2011,g:["comedie","drame"],d:112,p:"Un riche tétraplégique engage comme aide un jeune de banlieue sans filtre. Omar Sy, François Cluzet."},
+ {t:"Her",y:2013,g:["romance","sf","drame"],d:126,p:"Un homme solitaire tombe amoureux de l'intelligence artificielle de son ordinateur."},
+ {t:"L'Attachement",y:2024,g:["drame"],d:105,p:"Une libraire indépendante se lie malgré elle à son voisin et à ses enfants après un deuil."},
+ {t:"Premier Contact",y:2016,g:["sf","drame"],d:116,p:"Une linguiste tente de communiquer avec des extraterrestres arrivés sur Terre. Denis Villeneuve."},
+ {t:"Dangerous Animals",y:2025,g:["horreur","thriller"],d:98,p:"Une surfeuse est enlevée par un tueur qui nourrit ses requins avec ses victimes."},
+ {t:"28 ans plus tard",y:2025,g:["horreur","sf"],d:115,p:"Sur une île isolée, des survivants vivent encore avec le virus de la rage. Danny Boyle."},
+ {t:"M3GAN 2.0",y:2025,g:["sf","thriller","comedie"],d:120,p:"La poupée robot revient, cette fois pour affronter une IA militaire encore plus dangereuse."},
+ {t:"Un prophète",y:2009,g:["policier","drame"],d:155,p:"Un jeune détenu illettré gravit les échelons du crime en prison. Jacques Audiard."},
+ {t:"Magnolia",y:1999,g:["drame"],d:188,p:"Une journée à Los Angeles où une dizaine de destins s'entrecroisent."},
+ {t:"La Ligne verte",y:1999,g:["drame","fantastique"],d:189,p:"Dans le couloir de la mort, un gardien découvre qu'un condamné a un don extraordinaire."},
+ {t:"L'Accident de piano",y:2025,g:["comedie","drame"],d:88,p:"Une star d'internet insensible à la douleur doit gérer une affaire qui menace sa célébrité. Quentin Dupieux."},
+ {t:"There Will Be Blood",y:2007,g:["drame","histoire"],d:158,p:"Un prospecteur de pétrole impitoyable bâtit un empire dans la Californie du début du siècle."},
+ {t:"Kill Bill : Volume 1",y:2003,g:["action","thriller"],d:111,p:"Une tueuse sort du coma et se venge, un nom après l'autre. Quentin Tarantino."},
+ {t:"Matrix",y:1999,g:["sf","action"],d:136,p:"Un pirate informatique découvre que le monde qu'il connaît est une simulation."},
+ {t:"Call Me by Your Name",y:2017,g:["romance","drame"],d:132,p:"Un été en Italie, un adolescent tombe amoureux de l'étudiant qui loge chez ses parents."},
+ {t:"Les Infiltrés",y:2006,g:["policier","thriller"],d:151,p:"Un flic infiltré chez la mafia, une taupe de la mafia chez les flics. Martin Scorsese."},
+ {t:"Y a-t-il un flic pour sauver le monde ?",y:2025,g:["comedie","policier"],d:85,p:"Le fils de Frank Drebin reprend le flambeau de la parodie policière. Liam Neeson."},
+ {t:"Hostiles",y:2017,g:["drame","aventure","histoire"],d:134,p:"En 1892, un capitaine doit escorter un chef cheyenne mourant à travers des terres hostiles."},
+ {t:"Karate Kid : Legends",y:2025,g:["action","famille"],d:94,p:"Un jeune prodige du kung-fu arrivé à New York s'entraîne pour un grand tournoi."},
+ {t:"Revenge",y:2017,g:["thriller","action"],d:108,p:"Laissée pour morte dans le désert, une jeune femme traque ses agresseurs. Coralie Fargeat."},
+ {t:"Heat",y:1995,g:["policier","action","thriller"],d:170,p:"Un braqueur méthodique face à un flic obsessionnel. De Niro contre Pacino."},
+ {t:"The Master",y:2012,g:["drame"],d:138,p:"Un vétéran instable tombe sous l'emprise du charismatique fondateur d'un mouvement."},
+ {t:"Terminator",y:1984,g:["sf","action"],d:107,p:"Un cyborg venu du futur traque la femme dont le fils doit sauver l'humanité."},
+ {t:"Silent Hill",y:2006,g:["horreur","fantastique"],d:125,p:"Une mère cherche sa fille dans une ville fantôme noyée dans la brume et les cendres."},
+ {t:"Retour à Silent Hill",y:2026,g:["horreur","fantastique"],d:105,p:"Un homme revient à Silent Hill pour retrouver la femme qu'il a aimée."},
+ {t:"Dead Zone",y:1983,g:["thriller","fantastique"],d:103,p:"Sorti du coma, un professeur voit l'avenir des gens qu'il touche. David Cronenberg."},
+ {t:"The Mist",y:2007,g:["horreur","sf"],d:126,p:"Une brume épaisse enveloppe une ville et des habitants se retranchent dans un supermarché."},
+ {t:"30 jours de nuit",y:2007,g:["horreur"],d:113,p:"En Alaska, une ville plongée dans la nuit polaire est assiégée par des vampires."},
+ {t:"Daybreakers",y:2009,g:["sf","horreur","action"],d:98,p:"Dans un monde peuplé de vampires, le sang humain vient à manquer."},
+ {t:"Chambre 1408",y:2007,g:["horreur","thriller"],d:104,p:"Un écrivain sceptique passe la nuit dans la chambre d'hôtel la plus maudite de New York."},
+ {t:"Mandibules",y:2020,g:["comedie"],d:77,p:"Deux potes un peu idiots trouvent une mouche géante et veulent la dresser. Quentin Dupieux."},
+ {t:"La Chambre d'à côté",y:2024,g:["drame"],d:107,p:"Une femme gravement malade demande à une vieille amie de rester près d'elle. Pedro Almodóvar."},
+ {t:"Nuremberg",y:2025,g:["histoire","drame","thriller"],d:148,p:"Un psychiatre américain affronte Hermann Göring avant le grand procès des nazis."},
+ {t:"Marguerite et Julien",y:2015,g:["romance","drame","histoire"],d:105,p:"Au XVIIe siècle, un frère et une sœur s'aiment d'un amour interdit."},
+ {t:"Together",y:2025,g:["horreur","romance"],d:102,p:"Un couple qui s'installe à la campagne voit son corps se lier de façon littérale et terrifiante.",from:"2026-10-08"},
+ {t:"Alpha",y:2025,g:["drame","fantastique"],d:128,p:"Une ado rentre d'une fête avec un tatouage, alors qu'un mal mystérieux ronge la ville. Julia Ducournau.",c:"CANAL+ BOX OFFICE"},
+ {t:"Hurlevent",y:2026,g:["romance","drame"],d:136,p:"La passion dévastatrice de Cathy et Heathcliff, d'après Emily Brontë. Emerald Fennell.",from:"2026-10-06"},
+ {t:"Chers parents",y:2025,g:["comedie"],d:100,p:"Une comédie familiale française autour d'une annonce qui chamboule tout le monde."},
+ {t:"Hamnet",y:2025,g:["drame","histoire"],d:126,p:"Agnes et William Shakespeare face à la perte de leur fils, d'après Maggie O'Farrell.",from:"2026-10-06"},
+ {t:"Marsupilami",y:2026,g:["comedie","famille","aventure"],d:100,p:"La bande à Fifi est de retour, avec un nouveau compagnon à longue queue.",from:"2026-10-09"},
+ {t:"Chien 51",y:2025,g:["sf","thriller","policier"],d:110,p:"Dans un Paris futuriste divisé en zones, deux flics enquêtent sous l'œil d'une IA. Cédric Jimenez.",from:"2026-10-11"},
+ {t:"Connemara",y:2025,g:["romance","drame"],d:115,p:"Une femme revenue dans les Vosges retrouve un amour de jeunesse. Alex Lutz.",c:"CANAL+ BOX OFFICE",from:"2026-10-12"},
+ {t:"Dalloway",y:2025,g:["sf","thriller"],d:110,p:"Dans une résidence d'artistes ultra-connectée, une romancière se méfie de son assistante IA. Yann Gozlan.",from:"2026-10-13"},
+ {t:"La Maison des femmes",y:2025,g:["drame"],d:110,p:"Le quotidien d'une équipe qui accueille et soigne des femmes victimes de violences.",from:"2026-10-13"},
+ {t:"Running Man",y:2025,g:["action","sf","thriller"],d:133,p:"Un père fauché participe à un jeu télévisé mortel où le monde entier le traque. Edgar Wright.",from:"2026-10-16"},
+ {t:"Les Enfants de la Résistance",y:2026,g:["famille","histoire","aventure"],d:100,p:"Trois enfants entrent en résistance dans un village occupé, d'après la BD.",from:"2026-10-16"},
+ {t:"Gourou",y:2026,g:["thriller","drame"],d:115,p:"Un coach en développement personnel adulé se laisse dépasser par son emprise. Pierre Niney.",from:"2026-10-19"},
+ {t:"Cocorico 2",y:2026,g:["comedie"],d:95,p:"Les deux familles que tout oppose se retrouvent pour de nouvelles prises de bec.",from:"2026-10-23"},
+ {t:"Les Rayons et les Ombres",y:2026,g:["histoire","drame"],d:150,p:"L'engrenage de la collaboration pendant la Seconde Guerre mondiale. Xavier Giannoli, Jean Dujardin.",from:"2026-10-27"},
+ {t:"Scream 7",y:2026,g:["horreur","thriller"],d:115,p:"Ghostface reprend du service, et Sidney Prescott est de nouveau dans sa ligne de mire.",from:"2026-10-30"}
+];
+
+const DEFAULT_CHANNELS = ["CANAL+","CANAL+ CINÉMA(S)","CANAL+ GRAND ÉCRAN","CANAL+ BOX OFFICE","CANAL+ SÉRIES","CANAL+ DOCS","CANAL+ KIDS","CANAL+ SPORT","CANAL+ SPORT 360","CANAL+ FOOT","Ciné+ OCS","Netflix","Disney+","Apple TV","HBO Max","Paramount+"];
+
+/* ---------- Stockage local (protégé) ---------- */
+const KEY="cesoir:v1";
+function load(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+let state = Object.assign({ready:false,genres:[],channels:["CANAL+"],custom:[],maxDur:160,seen:[],nope:[],weights:{},recent:[],theme:"auto"}, load()||{});
+
+const $=s=>document.querySelector(s);
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2600)}
+function applyTheme(){const r=document.documentElement;if(state.theme==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",state.theme)}
+
+/* ---------- Écran des goûts ---------- */
+function chip(label,pressed,onClick){const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=label;b.setAttribute("aria-pressed",pressed);b.onclick=()=>{const v=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",v);onClick(v)};return b}
+function renderOnboarding(){
+  const gc=$("#genreChips");gc.innerHTML="";
+  Object.entries(GENRES).forEach(([k,l])=>gc.appendChild(chip(l,state.genres.includes(k),v=>{state.genres=v?[...state.genres,k]:state.genres.filter(x=>x!==k)})));
+  const cc=$("#channelChips");cc.innerHTML="";
+  [...DEFAULT_CHANNELS,...state.custom].forEach(ch=>cc.appendChild(chip(ch,state.channels.includes(ch),v=>{state.channels=v?[...state.channels,ch]:state.channels.filter(x=>x!==ch)})));
+  const r=$("#duration");r.value=state.maxDur;updDur();
+}
+function updDur(){const v=+$("#duration").value;state.maxDur=v;$("#durLabel").textContent=v>=200?"Peu importe la durée":`Jusqu'à ${Math.floor(v/60)} h ${String(v%60).padStart(2,"0")}`}
+$("#duration").oninput=updDur;
+$("#addChannel").onclick=()=>{const i=$("#customChannel"),v=i.value.trim();if(!v)return;if(!state.custom.includes(v)&&!DEFAULT_CHANNELS.includes(v))state.custom.push(v);if(!state.channels.includes(v))state.channels.push(v);i.value="";renderOnboarding();toast(`${v} ajoutée`)};
+$("#saveOnboarding").onclick=()=>{
+  if(!state.channels.length){toast("Cochez au moins une chaîne de votre abonnement.");return}
+  state.ready=true;save();show("viewFilm");
+};
+
+/* ---------- Tirage ---------- */
+const today=new Date().toISOString().slice(0,10);
+function available(f){
+  if(f.from&&f.from>today)return false;
+  if(f.c&&!state.channels.includes(f.c))return false;
+  if(state.maxDur<200&&f.d>state.maxDur)return false;
+  if(state.seen.includes(f.t)||state.nope.includes(f.t))return false;
+  return true;
+}
+function score(f){
+  let s=1;
+  f.g.forEach(g=>{if(state.genres.includes(g))s+=3;s+=(state.weights[g]||0)});
+  if(state.recent.includes(f.t))s*=.05;
+  return Math.max(s,.15);
+}
+function pick(pool){const tot=pool.reduce((a,f)=>a+score(f),0);let r=Math.random()*tot;for(const f of pool){r-=score(f);if(r<=0)return f}return pool[pool.length-1]}
+function fmtDur(d){return `${Math.floor(d/60)} h ${String(d%60).padStart(2,"0")}`}
+let current=null;
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function updateCount(){const n=FILMS.filter(available).length;$("#countLine").textContent=`${n} film${n>1?"s":""} possible${n>1?"s":""} selon vos réglages`}
+
+$("#drawFilm").onclick=()=>{
+  const pool=FILMS.filter(available);
+  if(!pool.length){$("#mTitle").textContent="Plus rien";$("#mMeta").textContent="Allongez la durée maximum ou remettez des films dans Réglages.";$("#mPitch").textContent="";$("#mTags").innerHTML="";$("#filmActions").hidden=true;return}
+  const f=pick(pool);current=f;
+  const btn=$("#drawFilm");btn.disabled=true;
+  const m=$("#marquee"),title=$("#mTitle");
+  const land=()=>{
+    m.classList.remove("shuffling");title.textContent=f.t;
+    $("#mMeta").textContent=`${f.y} · ${fmtDur(f.d)}${f.c?" · "+f.c:""}`;
+    $("#mPitch").textContent=f.p;
+    $("#mTags").innerHTML=f.g.map(g=>`<span class="tag">${GENRES[g]}</span>`).join("");
+    $("#filmActions").hidden=false;btn.disabled=false;btn.textContent="Un autre";
+    state.recent=[f.t,...state.recent.filter(x=>x!==f.t)].slice(0,6);save();
+  };
+  if(reduced){land();return}
+  m.classList.add("shuffling");$("#mPitch").textContent="";$("#mTags").innerHTML="";$("#mMeta").textContent="On cherche…";
+  let i=0;const iv=setInterval(()=>{title.textContent=pool[Math.floor(Math.random()*pool.length)].t;if(++i>11){clearInterval(iv);land()}},75);
+};
+function learn(f,delta){f.g.forEach(g=>{state.weights[g]=Math.max(-2,Math.min(4,(state.weights[g]||0)+delta))})}
+$("#watchBtn").onclick=()=>{
+  if(!current)return;
+  try{navigator.clipboard&&navigator.clipboard.writeText(current.t)}catch(e){}
+  learn(current,.5);state.seen.push(current.t);save();updateCount();
+  toast(`Titre copié : collez-le dans la recherche Canal+`);
+};
+$("#seenBtn").onclick=()=>{if(!current)return;state.seen.push(current.t);learn(current,.25);save();updateCount();toast("Noté, on ne vous le proposera plus");$("#drawFilm").click()};
+$("#nopeBtn").onclick=()=>{if(!current)return;state.nope.push(current.t);learn(current,-.5);save();updateCount();toast("Compris, on ajuste vos goûts");$("#drawFilm").click()};
+
+/* ---------- Zapping ---------- */
+$("#drawChannel").onclick=()=>{
+  const list=state.channels;if(!list.length){$("#cTitle").textContent="Aucune chaîne";$("#cMeta").textContent="Ajoutez vos chaînes dans Réglages.";return}
+  let ch=list[Math.floor(Math.random()*list.length)];
+  if(list.length>1)while(ch===$("#cTitle").textContent)ch=list[Math.floor(Math.random()*list.length)];
+  $("#cTitle").textContent=ch;$("#cMeta").textContent=`Parmi les ${list.length} chaînes de votre abonnement`;
+};
+
+/* ---------- Réglages ---------- */
+function renderSettings(){
+  const ul=$("#excludedList");ul.innerHTML="";
+  const all=[...state.seen.map(t=>[t,"Déjà vu"]),...state.nope.map(t=>[t,"Pas pour moi"])];
+  if(!all.length){ul.innerHTML=`<li class="muted">Aucun pour l'instant.</li>`}
+  all.forEach(([t,why])=>{const li=document.createElement("li");const s=document.createElement("span");s.innerHTML=`<strong></strong><br><span class="muted">${why}</span>`;s.querySelector("strong").textContent=t;const b=document.createElement("button");b.className="ghost";b.textContent="Remettre";b.onclick=()=>{state.seen=state.seen.filter(x=>x!==t);state.nope=state.nope.filter(x=>x!==t);save();renderSettings();updateCount()};li.append(s,b);ul.appendChild(li)});
+  $("#catalogInfo").textContent=`${FILMS.length} films Canal+, mis à jour le ${CATALOG_DATE}. Les nouveautés d'octobre apparaissent automatiquement à leur date de sortie. Pour rafraîchir le catalogue, demandez à Claude un nouveau fichier index.html et remplacez l'ancien sur GitHub.`;
+  const tc=$("#themeChips");tc.innerHTML="";
+  [["auto","Automatique"],["dark","Sombre"],["light","Clair"]].forEach(([k,l])=>{const b=document.createElement("button");b.className="chip";b.textContent=l;b.setAttribute("aria-pressed",state.theme===k);b.onclick=()=>{state.theme=k;save();applyTheme();renderSettings()};tc.appendChild(b)});
+}
+$("#editTastes").onclick=()=>show("onboarding");
+$("#resetAll").onclick=()=>{if(!confirm("Effacer vos goûts, votre abonnement et l'historique ?"))return;try{localStorage.removeItem(KEY)}catch(e){}location.reload()};
+
+/* ---------- Navigation ---------- */
+function show(id){
+  ["onboarding","viewFilm","viewChannel","viewSettings"].forEach(v=>$("#"+v).hidden=v!==id);
+  $("#tabs").hidden=id==="onboarding";
+  document.querySelectorAll("#tabs button").forEach(b=>{if(b.dataset.view===id)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+  if(id==="onboarding")renderOnboarding();
+  if(id==="viewFilm")updateCount();
+  if(id==="viewSettings")renderSettings();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.view));
+applyTheme();
+show(state.ready?"viewFilm":"onboarding");
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+</script>
+</body>
+</html>
