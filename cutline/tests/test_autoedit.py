@@ -2,10 +2,11 @@
 
 import json
 from pathlib import Path
-import shutil
 import xml.etree.ElementTree as ET
 
 import pytest
+
+from cutline.core.media import _find_tool
 
 from cutline.analysis.transcript import Segment, to_srt
 from cutline.autoedit.recipes import EditOptions
@@ -15,7 +16,7 @@ from cutline.interop.exchange import to_edl, to_fcpxml, to_otio
 from cutline.pipeline import Session, load_script
 from cutline.render.ffmpeg_render import RenderSettings, render
 
-pytestmark = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="FFmpeg requis")
+pytestmark = pytest.mark.skipif(_find_tool("ffmpeg") is None, reason="FFmpeg requis")
 
 
 @pytest.fixture(scope="module")

@@ -19,10 +19,10 @@ def detect_beats(path: str | Path, window: float = 0.05, min_gap: float = 0.25,
     n = int(22050 * window)
     with tempfile.TemporaryDirectory(prefix="cutline_") as tmp:
         f = Path(tmp) / "m.txt"
-        run([ffmpeg_bin(), "-hide_banner", "-nostats", "-i", str(path), "-vn", "-af",
+        run([ffmpeg_bin(), "-hide_banner", "-nostats", "-i", str(Path(path).resolve()), "-vn", "-af",
              f"aresample=22050,pan=mono|c0=c0,asetnsamples=n={n}:p=0,astats=metadata=1:reset=1,"
-             f"ametadata=print:key=lavfi.astats.Overall.RMS_level:file={f.as_posix()}",
-             "-f", "null", "-"])
+             "ametadata=print:key=lavfi.astats.Overall.RMS_level:file=m.txt",
+             "-f", "null", "-"], cwd=tmp)
         env = _parse_metadata_file(f, "lavfi.astats.Overall.RMS_level")
     if len(env) < 3:
         return []

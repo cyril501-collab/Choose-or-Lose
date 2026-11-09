@@ -1,11 +1,12 @@
-import shutil
 
 import pytest
+
+from cutline.core.media import _find_tool
 
 from cutline.app_runner import JobParams, parse_speakers, run_job
 from cutline.demo import generate
 
-pytestmark = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="FFmpeg requis")
+pytestmark = pytest.mark.skipif(_find_tool("ffmpeg") is None, reason="FFmpeg requis")
 
 
 def test_parse_speakers():

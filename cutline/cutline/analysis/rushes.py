@@ -139,20 +139,20 @@ def analyse_signal(asset: MediaAsset, cut_threshold: float = 0.3, window: float 
     with tempfile.TemporaryDirectory(prefix="cutline_") as tmp:
         tmp_p = Path(tmp)
         vfile, afile = tmp_p / "v.txt", tmp_p / "a.txt"
-        cmd = [ffmpeg_bin(), "-hide_banner", "-nostats", "-i", asset.path]
+        cmd = [ffmpeg_bin(), "-hide_banner", "-nostats", "-i", str(Path(asset.path).resolve())]
         if asset.has_video:
             cmd += ["-map", "0:v:0", "-vf",
                     "scale=160:-2,select='gte(scene,0)',"
-                    f"metadata=print:key=lavfi.scene_score:file={vfile.as_posix()},"
+                    "metadata=print:key=lavfi.scene_score:file=v.txt,"
                     "blackdetect=d=0.2:pix_th=0.10"]
         if asset.has_audio:
             n = int(16000 * window)
             cmd += ["-map", "0:a:0", "-af",
                     f"aresample=16000,asetnsamples=n={n}:p=0,astats=metadata=1:reset=1,"
-                    f"ametadata=print:key=lavfi.astats.Overall.RMS_level:file={afile.as_posix()},"
+                    "ametadata=print:key=lavfi.astats.Overall.RMS_level:file=a.txt,"
                     "silencedetect=n=-45dB:d=0.4"]
         cmd += ["-f", "null", "-"]
-        proc = run(cmd)
+        proc = run(cmd, cwd=tmp_p)  # fichiers de mesure relatifs au dossier temporaire
         scene_scores = _parse_metadata_file(vfile, "lavfi.scene_score")
         rms = _parse_metadata_file(afile, "lavfi.astats.Overall.RMS_level")
     duration = asset.duration_seconds

@@ -31,9 +31,12 @@ def selftest(log_path: str) -> int:
         try:
             import faster_whisper  # noqa: F401
             from cutline.analysis.transcript import resolve_model
+            from faster_whisper import WhisperModel
+            WhisperModel(resolve_model("small"), device="cpu", compute_type="int8")  # charge les DLL
             lines.append(f"whisper: OK, modèle = {resolve_model('small')}")
         except Exception as exc:  # noqa: BLE001
-            lines.append(f"whisper: INDISPONIBLE ({exc})")
+            lines.append(f"whisper: INDISPONIBLE ({exc!r})")
+            raise
         with tempfile.TemporaryDirectory() as tmp:
             rushes = generate(Path(tmp) / "rushes", takes=1)
             files = run_job(JobParams(mode="teaser", rushes=str(rushes), output_dir=str(Path(tmp) / "out"),

@@ -53,9 +53,9 @@ def ffprobe_bin() -> str:
     return path
 
 
-def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
+def run(cmd: list[str], check: bool = True, cwd: str | Path | None = None) -> subprocess.CompletedProcess:
     extra = {"creationflags": 0x08000000} if os.name == "nt" else {}  # pas de fenêtre console sous Windows
-    proc = subprocess.run(cmd, capture_output=True, text=True, errors="replace", **extra)
+    proc = subprocess.run(cmd, capture_output=True, text=True, errors="replace", cwd=cwd, **extra)
     if check and proc.returncode != 0:
         tail = "\n".join(proc.stderr.strip().splitlines()[-15:])
         raise MediaError(f"Échec de la commande {Path(cmd[0]).name} :\n{tail}")

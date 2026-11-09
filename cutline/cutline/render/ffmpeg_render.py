@@ -73,11 +73,11 @@ class _Graph:
         self.n_text += 1
         p = self.tmp / f"t{self.n_text}.txt"
         p.write_text(text, encoding="utf-8")
-        return _esc(p.as_posix())
+        return p.name  # chemin relatif : FFmpeg est lancé dans le dossier temporaire
 
     def drawtext(self, text: str, size: int, y_expr: str, enable: str = "", alpha: str = "1",
                  color: str = "white", x_expr: str = "(w-text_w)/2") -> str:
-        font = f"fontfile='{_esc(self.font)}':" if self.font else ""
+        font = f"fontfile='{self.font}':" if self.font else ""
         en = f":enable='{enable}'" if enable else ""
         return (f"drawtext={font}textfile='{self.text_file(text)}':fontsize={size}:fontcolor={color}"
                 f":x={x_expr}:y={y_expr}:alpha='{alpha}'{en}")
@@ -105,7 +105,10 @@ def build_command(project: Project, tl: Timeline, output: str | Path, settings: 
     W, H = W - W % 2, H - H % 2
     total = tl.duration
     total_s = total / fps
-    g = _Graph(tmp, find_font())
+    font = find_font()
+    if font:  # copie locale : un chemin « C:/… » casserait la syntaxe des filtres sous Windows
+        shutil.copy(font, tmp / "font.ttf")
+    g = _Graph(tmp, "font.ttf" if font else None)
 
     # ---------------- vidéo : V1 en séquence (trous comblés par du noir) ------------------
     v1 = sorted([c for c in tl.track("V1").clips if c.enabled], key=lambda c: c.record_in)
@@ -243,7 +246,7 @@ def build_command(project: Project, tl: Timeline, output: str | Path, settings: 
     cmd = [ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error"]
     for inp in g.inputs:
         cmd += inp
-    cmd += ["-filter_complex_script", str(script), "-map", "[vout]", "-map", "[aout]",
+    cmd += ["-filter_complex_script", script.name, "-map", "[vout]", "-map", "[aout]",
             "-r", rate, *CODECS.get(settings.codec, CODECS["h264"]),
             "-c:a", "pcm_s24le" if settings.codec in ("prores", "dnxhr") else "aac",
             *([] if settings.codec in ("prores", "dnxhr") else ["-b:a", settings.audio_bitrate]),
@@ -254,11 +257,11 @@ def build_command(project: Project, tl: Timeline, output: str | Path, settings: 
 def render(project: Project, tl: Timeline, output: str | Path, settings: RenderSettings | None = None,
            keep_graph: str | Path | None = None) -> Path:
     settings = settings or RenderSettings()
-    output = Path(output)
+    output = Path(output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="cutline_render_") as tmp:
         cmd = build_command(project, tl, output, settings, Path(tmp))
         if keep_graph:
             shutil.copy(Path(tmp) / "graph.txt", keep_graph)
-        run(cmd)
+        run(cmd, cwd=tmp)
     return output

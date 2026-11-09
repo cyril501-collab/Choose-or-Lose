@@ -27,7 +27,7 @@ jobs:
       - name: Dépendances
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller==6.11.1 faster-whisper huggingface_hub pytest
+          pip install pyinstaller faster-whisper huggingface_hub pytest
           pip install .
 
       - name: FFmpeg (ffmpeg.exe + ffprobe.exe)
@@ -62,7 +62,7 @@ jobs:
             --add-data "bundle/ffmpeg;ffmpeg" `
             --add-data "bundle/models;models" `
             --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime `
-            --collect-all av --collect-all tokenizers --collect-data cutline `
+            --collect-all av --collect-all tokenizers --collect-all numpy --collect-data cutline `
             --hidden-import tkinter `
             packaging/cutline_app.py
 
