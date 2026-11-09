@@ -32,7 +32,15 @@ jobs:
 
       - name: FFmpeg (ffmpeg.exe + ffprobe.exe)
         run: |
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile ffmpeg.zip
+          $ProgressPreference = "SilentlyContinue"
+          try {
+            Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile ffmpeg.zip
+          } catch {
+            Write-Host "Source gyan.dev indisponible, essai de BtbN"
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest" -Headers @{ Authorization = "Bearer ${{ github.token }}" }
+            $asset = $rel.assets | Where-Object { $_.name -match "win64-gpl\.zip$" -and $_.name -notmatch "shared" } | Select-Object -First 1
+            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile ffmpeg.zip
+          }
           Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_src
           New-Item -ItemType Directory -Force -Path bundle/ffmpeg | Out-Null
           Get-ChildItem -Recurse ffmpeg_src -Include ffmpeg.exe,ffprobe.exe | Copy-Item -Destination bundle/ffmpeg
