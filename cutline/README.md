@@ -20,7 +20,21 @@ ou l'ouvre dans son logiciel habituel via EDL, FCPXML ou OpenTimelineIO.
 > (moniteurs source/programme, timeline interactive, étalonnage, mixage) est l'étape suivante —
 > voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) pour la feuille de route complète.
 
-## Installation
+## Pour les monteurs : version Windows (sans rien installer d'autre)
+
+1. Téléchargez **Cutline_Installation.exe** depuis la page « Releases » du dépôt
+   (version « Cutline pour Windows (dernière version) »).
+2. Double-cliquez dessus et suivez les étapes. Un raccourci **Cutline** apparaît sur le Bureau.
+3. Ouvrez Cutline, choisissez le type de montage, le dossier de vos rushes, votre scénario
+   (facultatif) et une musique (facultatif), puis cliquez sur **MONTER**.
+4. Le dossier de résultat s'ouvre tout seul : la vidéo `.mp4`, la version Avid `_Avid.mov`
+   (DNxHR HQ), l'EDL et un fichier `LISEZMOI_Avid.txt` qui explique comment les récupérer
+   dans Avid Media Composer.
+
+Si Windows affiche « Windows a protégé votre ordinateur », cliquez sur **Informations
+complémentaires** puis **Exécuter quand même** (l'application n'est pas encore signée).
+
+## Installation pour développeurs
 
 Prérequis : Python ≥ 3.10 et [FFmpeg](https://ffmpeg.org) (ffmpeg + ffprobe dans le PATH).
 

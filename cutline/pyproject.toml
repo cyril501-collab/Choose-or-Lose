@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cutline"
-version = "0.1.0"
+version = "0.2.0"
 description = "Moteur de montage vidéo professionnel avec analyse de scénario, dérushage et montage automatique (bandes-annonces, previously, coming next, sujets JT)."
 readme = "README.md"
 requires-python = ">=3.10"

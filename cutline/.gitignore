@@ -6,3 +6,7 @@ dist/
 demo/
 *.mp4
 *.cutline
+bundle/
+ffmpeg_src/
+ffmpeg.zip
+*.spec

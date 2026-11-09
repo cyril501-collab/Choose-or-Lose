@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .model import MediaAsset
@@ -21,22 +23,39 @@ class MediaError(RuntimeError):
     pass
 
 
+def _find_tool(name: str) -> str | None:
+    """Cherche d'abord un FFmpeg livré avec l'application, puis celui du système."""
+    exe = name + (".exe" if os.name == "nt" else "")
+    candidates = []
+    if os.environ.get("CUTLINE_FFMPEG_DIR"):
+        candidates.append(Path(os.environ["CUTLINE_FFMPEG_DIR"]))
+    bundle = getattr(sys, "_MEIPASS", None)  # application empaquetée (PyInstaller)
+    if bundle:
+        candidates.append(Path(bundle) / "ffmpeg")
+    candidates.append(Path(sys.executable).parent / "ffmpeg")
+    for d in candidates:
+        if (d / exe).exists():
+            return str(d / exe)
+    return shutil.which(name)
+
+
 def ffmpeg_bin() -> str:
-    path = shutil.which("ffmpeg")
+    path = _find_tool("ffmpeg")
     if not path:
         raise MediaError("FFmpeg est introuvable : installez-le (https://ffmpeg.org)")
     return path
 
 
 def ffprobe_bin() -> str:
-    path = shutil.which("ffprobe")
+    path = _find_tool("ffprobe")
     if not path:
         raise MediaError("FFprobe est introuvable : installez FFmpeg (https://ffmpeg.org)")
     return path
 
 
 def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
-    proc = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
+    extra = {"creationflags": 0x08000000} if os.name == "nt" else {}  # pas de fenêtre console sous Windows
+    proc = subprocess.run(cmd, capture_output=True, text=True, errors="replace", **extra)
     if check and proc.returncode != 0:
         tail = "\n".join(proc.stderr.strip().splitlines()[-15:])
         raise MediaError(f"Échec de la commande {Path(cmd[0]).name} :\n{tail}")

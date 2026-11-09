@@ -73,6 +73,25 @@ def sidecar_for(media_path: str | Path) -> Path | None:
     return None
 
 
+def resolve_model(model: str) -> str:
+    """Utilise le modèle livré avec l'application s'il existe (fonctionne sans Internet)."""
+    import os
+    import sys
+
+    roots = [os.environ.get("CUTLINE_MODELS_DIR", "")]
+    if getattr(sys, "_MEIPASS", None):
+        roots.append(os.path.join(sys._MEIPASS, "models"))  # type: ignore[attr-defined]
+    roots.append(os.path.join(os.path.dirname(sys.executable), "models"))
+    for root in filter(None, roots):
+        cand = Path(root) / f"faster-whisper-{model}"
+        if (cand / "model.bin").exists():
+            return str(cand)
+    return model
+
+
+_MODEL_CACHE: dict[str, object] = {}
+
+
 def transcribe(media_path: str | Path, language: str | None = "fr", model: str = "small",
                use_asr: bool = True) -> list[Segment]:
     """Retourne la transcription d'un rush.
@@ -90,6 +109,8 @@ def transcribe(media_path: str | Path, language: str | None = "fr", model: str =
         from faster_whisper import WhisperModel  # type: ignore
     except ImportError:
         return []
-    wm = WhisperModel(model, compute_type="int8")
+    wm = _MODEL_CACHE.get(model)
+    if wm is None:
+        wm = _MODEL_CACHE[model] = WhisperModel(resolve_model(model), device="cpu", compute_type="int8")
     segs, _ = wm.transcribe(str(media_path), language=language, vad_filter=True)
     return [Segment(s.start, s.end, s.text.strip()) for s in segs if s.text.strip()]

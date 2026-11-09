@@ -1,0 +1,90 @@
+name: Cutline - installateur Windows
+
+on:
+  push:
+    paths:
+      - "cutline/**"
+      - ".github/workflows/cutline-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: cutline
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller==6.11.1 faster-whisper huggingface_hub pytest
+          pip install .
+
+      - name: FFmpeg (ffmpeg.exe + ffprobe.exe)
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_src
+          New-Item -ItemType Directory -Force -Path bundle/ffmpeg | Out-Null
+          Get-ChildItem -Recurse ffmpeg_src -Include ffmpeg.exe,ffprobe.exe | Copy-Item -Destination bundle/ffmpeg
+          Get-ChildItem bundle/ffmpeg
+
+      - name: Tests
+        run: |
+          $env:CUTLINE_FFMPEG_DIR = "$PWD\bundle\ffmpeg"
+          python -m pytest -q
+
+      - name: Modèle de reconnaissance vocale (faster-whisper small)
+        run: |
+          python -c "from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-whisper-small', local_dir='bundle/models/faster-whisper-small')"
+          Remove-Item -Recurse -Force bundle/models/faster-whisper-small/.cache -ErrorAction SilentlyContinue
+
+      - name: Application (PyInstaller)
+        run: |
+          pyinstaller --noconfirm --windowed --name Cutline `
+            --add-data "bundle/ffmpeg;ffmpeg" `
+            --add-data "bundle/models;models" `
+            --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime `
+            --collect-all av --collect-all tokenizers --collect-data cutline `
+            --hidden-import tkinter `
+            packaging/cutline_app.py
+
+      - name: Vérification de l'application construite
+        run: |
+          $p = Start-Process -FilePath "dist\Cutline\Cutline.exe" -ArgumentList "--selftest","$PWD\selftest.txt" -Wait -PassThru
+          Get-Content selftest.txt
+          if ($p.ExitCode -ne 0) { throw "Selftest en échec (code $($p.ExitCode))" }
+
+      - name: Installateur (Inno Setup)
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc packaging\cutline.iss
+          Get-ChildItem ..\dist -ErrorAction SilentlyContinue
+          Get-ChildItem dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cutline_Installation
+          path: cutline/dist/Cutline_Installation.exe
+
+      - name: Publication du lien de téléchargement
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: cutline-windows-latest
+          name: Cutline pour Windows (dernière version)
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          files: cutline/dist/Cutline_Installation.exe
+          body: |
+            Téléchargez **Cutline_Installation.exe** ci-dessous, double-cliquez dessus et suivez les étapes.
+            Un raccourci « Cutline » est créé sur le Bureau.
