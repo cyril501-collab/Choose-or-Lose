@@ -1,0 +1,154 @@
+"""Rapprochement rushes ↔ scénario et construction des « moments » montables."""
+
+from __future__ import annotations
+
+from collections import Counter
+from dataclasses import asdict, dataclass, field
+from difflib import SequenceMatcher
+import math
+
+from .rushes import RushReport
+from .script import Scene, Script, normalize, score_line, text_intensity, tokenize
+
+
+@dataclass
+class Moment:
+    """Un extrait candidat pour le montage automatique (temps source en secondes)."""
+
+    asset_id: str
+    start: float
+    end: float
+    kind: str  # "dialogue" | "action" | "soundbite" | "broll"
+    score: float
+    scene: str = ""        # numéro de séquence dans le scénario
+    position: float = 0.0  # position relative de la séquence dans le récit
+    act: int = 0
+    text: str = ""
+    speaker: str = ""
+    line_index: int = -1   # index de la réplique dans le scénario
+    activity: float = 0.0
+    intensity: float = 0.0
+    take: str = ""
+    tags: list[str] = field(default_factory=list)
+
+    @property
+    def duration(self) -> float:
+        return self.end - self.start
+
+    def overlaps(self, other: "Moment") -> bool:
+        return self.asset_id == other.asset_id and self.start < other.end and other.start < self.end
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def similarity(a: str, b: str) -> float:
+    na, nb = normalize(a), normalize(b)
+    if not na or not nb:
+        return 0.0
+    return SequenceMatcher(None, na, nb).ratio()
+
+
+def _cosine(a: Counter, b: Counter) -> float:
+    common = set(a) & set(b)
+    num = sum(a[w] * b[w] for w in common)
+    den = math.sqrt(sum(v * v for v in a.values())) * math.sqrt(sum(v * v for v in b.values()))
+    return num / den if den else 0.0
+
+
+def assign_scene(report: RushReport, script: Script) -> Scene | None:
+    """Séquence d'un rush : d'après le slate, sinon d'après la transcription."""
+    num = report.slate.get("scene")
+    if num:
+        s = script.scene(num) or script.scene(num.lstrip("0"))
+        if s:
+            return s
+    text = " ".join(seg.text for seg in report.transcript)
+    if not text.strip():
+        return None
+    tv = Counter(tokenize(text))
+    best, best_sc = None, 0.0
+    for s in script.scenes:
+        sc = _cosine(tv, Counter(tokenize(s.text)))
+        if sc > best_sc:
+            best, best_sc = s, sc
+    return best if best_sc >= 0.2 else None
+
+
+def build_moments(reports: list[RushReport], script: Script | None = None,
+                  best_take_only: bool = True) -> list[Moment]:
+    """Transforme les rapports de dérushage en moments notés, rattachés au scénario si fourni."""
+    moments: list[Moment] = []
+    mains = script.main_characters if script else []
+    all_lines = script.all_lines() if script else []
+
+    for rep in reports:
+        scene = assign_scene(rep, script) if script else None
+        interview = bool(rep.slate.get("interview"))
+        take_bonus = 1.15 if rep.slate.get("circled") else 1.0
+        take = "-".join(str(rep.slate[k]) for k in ("scene", "shot", "take") if k in rep.slate)
+        scene_lines = [(scene, d) for d in scene.dialogue] if scene else all_lines
+
+        # 1. Répliques / sonores (segments de parole)
+        for seg in rep.transcript:
+            if seg.duration < 0.4:
+                continue
+            m = Moment(rep.asset_id, seg.start, seg.end, "soundbite" if (interview or not script) else "dialogue",
+                       score=0.0, text=seg.text, speaker=seg.speaker, take=take)
+            match_sc, match = 0.0, None
+            for sc, line in scene_lines:
+                r = similarity(seg.text, line.text)
+                if r > match_sc:
+                    match_sc, match = r, (sc, line)
+            if script and match and match_sc >= 0.55:
+                sc, line = match
+                m.scene, m.position, m.act = sc.number, sc.position, sc.act
+                m.speaker = m.speaker or line.character
+                m.line_index = line.index
+                m.intensity = sc.intensity
+                m.score = (line.score * (0.6 + 0.4 * match_sc) + 0.5 * sc.importance) * take_bonus
+            else:
+                if scene:
+                    m.scene, m.position, m.act, m.intensity = scene.number, scene.position, scene.act, scene.intensity
+                from .script import DialogueLine
+                m.score = score_line(DialogueLine(m.speaker or "?", seg.text), mains) * 0.8
+                if interview:
+                    m.score += 0.5 + min(1.0, seg.duration / 12)
+            m.tags.append("speech")
+            moments.append(m)
+
+        # 2. Plans visuels (action / illustration)
+        for shot in rep.shots:
+            if shot.score <= 0.05:
+                continue
+            kind = "broll" if (interview or not script) else "action"
+            if interview and shot.speech_ratio > 0.5:
+                continue  # le plan d'interview sert via les sonores
+            m = Moment(rep.asset_id, shot.start, shot.end, kind, score=shot.score,
+                       activity=shot.activity, text=shot.text, take=take)
+            if scene:
+                m.scene, m.position, m.act = scene.number, scene.position, scene.act
+                m.intensity = scene.intensity
+                m.score = shot.score * (1 + 0.5 * scene.importance) + 0.1 * text_intensity(" ".join(scene.action))
+            if shot.speech_ratio > 0.3:
+                m.tags.append("speech")
+            moments.append(m)
+
+    if best_take_only and script:
+        moments = _keep_best_takes(moments)
+    moments.sort(key=lambda m: (m.position, m.asset_id, m.start))
+    return moments
+
+
+def _keep_best_takes(moments: list[Moment]) -> list[Moment]:
+    """Pour une même réplique jouée sur plusieurs prises, ne garde que la meilleure prise."""
+    best: dict[int, Moment] = {}
+    rest: list[Moment] = []
+    for m in moments:
+        if m.line_index >= 0:
+            cur = best.get(m.line_index)
+            if cur is None or m.score > cur.score:
+                best[m.line_index] = m
+        else:
+            rest.append(m)
+    return rest + list(best.values())
