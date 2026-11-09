@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from .analysis.matching import Moment, build_moments
 from .analysis.music import detect_beats
@@ -19,7 +20,18 @@ MODES = ("trailer", "teaser", "previously", "coming_next", "news")
 def load_script(path: str | Path | None) -> Script | None:
     if not path:
         return None
-    return parse_script(Path(path).read_text(encoding="utf-8", errors="replace"))
+    raw = Path(path).read_bytes()
+    for enc in ("utf-8-sig", "cp1252", "latin-1"):  # les .txt Windows sont souvent en cp1252
+        try:
+            text = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    script = parse_script(text)
+    if script.title == "Sans titre":  # « RESUME ELDORADO.txt » → « ELDORADO »
+        stem = re.sub(r"(?i)^(r[ée]sum[ée]|synopsis|sc[ée]nario|script)[\s_\-]*", "", Path(path).stem)
+        script.title = stem.strip(" _-") or Path(path).stem
+    return script
 
 
 class Session:

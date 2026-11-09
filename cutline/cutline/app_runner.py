@@ -94,8 +94,12 @@ def run_job(p: JobParams, log: Callable[[str], None] = print,
         raise ValueError(f"Type de montage inconnu : {p.mode}")
     if not p.rushes or not Path(p.rushes).exists():
         raise ValueError("Choisissez le dossier contenant vos rushes.")
-    out_dir = Path(p.output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if not p.output_dir:
+        raise ValueError("Choisissez le dossier où enregistrer le résultat.")
+    base_dir = Path(p.output_dir).expanduser()
+    if base_dir.drive and not base_dir.root:  # « F: » seul = dossier courant du lecteur → « F:\\ »
+        base_dir = Path(base_dir.drive + "\\")
+    base_dir.mkdir(parents=True, exist_ok=True)
 
     progress(0.02)
     log("Préparation du projet…")
@@ -156,6 +160,10 @@ def run_job(p: JobParams, log: Callable[[str], None] = print,
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
     base = f"{_safe(MODE_LABELS[p.mode].split(' (')[0])}_{_safe(p.title)}_{stamp}" if p.title else \
         f"{_safe(MODE_LABELS[p.mode].split(' (')[0])}_{stamp}"
+    # Un dossier par montage, facile à retrouver : <dossier choisi>/Cutline/<montage>/
+    out_dir = (base_dir / "Cutline" / base).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log(f"Dossier du résultat : {out_dir}")
     files: dict[str, Path] = {}
 
     log("Création de la vidéo de visionnage (MP4)…")
@@ -180,6 +188,13 @@ def run_job(p: JobParams, log: Callable[[str], None] = print,
         date=datetime.now().strftime("%d/%m/%Y à %H:%M")), encoding="utf-8")
     files["readme"] = readme
     ses.save(out_dir / f"{base}.cutline")
+    missing = [f for f in files.values() if not f.exists() or f.stat().st_size == 0]
+    for f in files.values():
+        state = "OK" if f not in missing else "INTROUVABLE"
+        log(f"  {state}  {f}")
+    if missing:
+        raise RuntimeError("Certains fichiers n'ont pas été écrits : " + ", ".join(str(m) for m in missing))
     progress(1.0)
     log("Terminé !")
+    files["folder"] = out_dir
     return files

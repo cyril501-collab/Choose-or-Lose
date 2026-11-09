@@ -22,7 +22,9 @@ def test_run_job_creates_avid_ready_files(tmp_path):
                               duration=15, transcribe=False, avid_version=True, width=640, height=360),
                     log=logs.append)
     assert {"video", "avid", "edl", "fcpxml", "readme"} <= set(files)
-    assert all(p.exists() and p.stat().st_size > 0 for p in files.values())
+    folder = files.pop("folder")
+    assert folder.is_dir() and folder.parent.name == "Cutline"
+    assert all(p.exists() and p.stat().st_size > 0 and p.parent == folder for p in files.values())
     assert "Avid" in files["readme"].read_text(encoding="utf-8")
     assert logs[-1] == "Terminé !"
 

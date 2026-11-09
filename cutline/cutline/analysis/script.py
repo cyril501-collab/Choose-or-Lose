@@ -101,6 +101,7 @@ class Scene:
     intensity: float = 0.0
     importance: float = 0.0
     keywords: list[str] = field(default_factory=list)
+    episode: str = ""  # numéro d'épisode (résumés de série « Épisode 3 : … »)
 
     @property
     def characters(self) -> list[str]:
@@ -124,6 +125,7 @@ class Script:
     scenes: list[Scene]
     characters: dict[str, int]  # personnage → nombre de répliques
     episode: str = ""
+    kind: str = "screenplay"  # "screenplay" (scénario) | "synopsis" (résumé en prose)
 
     @property
     def main_characters(self) -> list[str]:
@@ -266,7 +268,63 @@ def parse_script(text: str, title: str = "") -> Script:
 
     scenes = [s for s in scenes if s.action or s.dialogue or s.number != "0"]
     chars = Counter(d.character for s in scenes for d in s.dialogue)
+    if not any(s.dialogue for s in scenes) and len(scenes) <= 1:
+        return parse_synopsis(text, title)
     script = Script(title=title or "Sans titre", scenes=scenes, characters=dict(chars))
+    score_script(script)
+    return script
+
+
+_EPISODE_RE = re.compile(r"^\s*(?:[ÉE]PISODE|EP\.?|E)\s*(\d{1,3})\b\s*[:.\-–—)]*\s*", re.IGNORECASE)
+_NAME_RE = re.compile(r"(?<![\w'’])([A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+(?:[- ][A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+)?)")
+_NOT_NAMES = {normalize(w) for w in (
+    "Le La Les Un Une Des Il Elle Ils Elles On Nous Vous Je Tu Mais Et Ou Donc Or Ni Car Quand Alors "
+    "Puis Ensuite Enfin Pendant Après Avant Dans Sur Sous Avec Sans Pour Par Ce Cette Ces Son Sa Ses "
+    "Leur Leurs Lorsque Tandis Comme Si Cependant Pourtant Toutefois Désormais Bientôt Mais Lui Eux "
+    "Celui Celle Tout Toute Tous Toutes Aucun Chaque Quel Quelle Qui Que Quoi Dont Où Episode Épisode "
+    "Saison Résumé Resume Synopsis The A An He She They It In On At Of And But When Then After Before "
+    "Lundi Mardi Mercredi Jeudi Vendredi Samedi Dimanche Janvier Février Mars Avril Mai Juin Juillet "
+    "Août Septembre Octobre Novembre Décembre France Paris").split()}
+
+
+def parse_synopsis(text: str, title: str = "") -> Script:
+    """Résumé en prose : découpé en « temps du récit » (paragraphes ou groupes de phrases)."""
+    text = text.replace("\r\n", "\n").strip()
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    if len(paragraphs) <= 2:
+        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        paragraphs = lines if len(lines) > 2 else paragraphs
+    if len(paragraphs) <= 2:  # un seul bloc : groupes de 3 phrases
+        sentences = re.split(r"(?<=[.!?…])\s+", " ".join(paragraphs))
+        paragraphs = [" ".join(sentences[i:i + 3]) for i in range(0, len(sentences), 3)]
+    if paragraphs and not title and len(paragraphs[0]) < 60 and not paragraphs[0].endswith("."):
+        title = paragraphs.pop(0).strip(" :#")
+    scenes: list[Scene] = []
+    episode = ""
+    for para in paragraphs:
+        m = _EPISODE_RE.match(para)
+        if m:
+            episode = m.group(1).lstrip("0") or "0"
+            para = para[m.end():].strip()
+            if not para:
+                continue
+        words = para.split()
+        heading = " ".join(words[:8]) + ("…" if len(words) > 8 else "")
+        scenes.append(Scene(number=str(len(scenes) + 1), heading=heading, action=[para], episode=episode))
+    # Personnages : noms propres répétés (hors début de phrase)
+    names: Counter = Counter()
+    full = " ".join(sc.text for sc in scenes)
+    for mm in _NAME_RE.finditer(full):
+        name = mm.group(1)
+        first = name.split()[0]
+        if normalize(first) in _NOT_NAMES:
+            continue
+        # un vrai nom propre n'apparaît jamais en minuscules dans le texte
+        if re.search(rf"(?<![\w'’]){re.escape(first.lower())}(?![\w])", full):
+            continue
+        names[name.upper()] += 1
+    chars = {n: c for n, c in names.items() if c >= 2}
+    script = Script(title=title or "Sans titre", scenes=scenes, characters=chars, kind="synopsis")
     score_script(script)
     return script
 

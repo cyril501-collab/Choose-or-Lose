@@ -54,3 +54,40 @@ def test_slate():
     assert parse_slate("SEQ04-PL2-PR5_OK")["circled"] is True
     assert parse_slate("12A_3_2")["scene"] == "12A"
     assert parse_slate("ITW_maire")["interview"] is True
+
+
+def test_synopsis_and_episodes(tmp_path):
+    from cutline.analysis.matching import episode_number
+    from cutline.pipeline import load_script
+    txt = ("Épisode 1 : À La Rochelle, Lucas découvre un coffre au fond du port. Sa sœur Inès le met en garde.\n\n"
+           "Épisode 2 : Lucas et Inès cherchent l'origine du trésor. Un homme les menace.\n\n"
+           "Épisode 3 : Inès disparaît. Lucas comprend que leur père cachait un secret. Une explosion !\n")
+    f = tmp_path / "RESUME ELDORADO.txt"
+    f.write_bytes(txt.encode("cp1252"))  # fichier texte Windows
+    s = load_script(f)
+    assert s.kind == "synopsis" and s.title == "ELDORADO"
+    assert [sc.episode for sc in s.scenes] == ["1", "2", "3"]
+    assert set(s.main_characters) == {"LUCAS", "INÈS"}
+    assert s.scenes[2].importance == 1.0
+    assert episode_number("ELDORADO-EP6") == 6 and episode_number("S01E03_master") == 3
+    assert episode_number("ITW_maire") is None
+
+
+def test_full_episode_rushes_are_placed_in_story():
+    from cutline.analysis.matching import build_moments
+    from cutline.analysis.rushes import RushReport, Shot
+    from cutline.analysis.script import parse_script
+    from cutline.analysis.transcript import Segment
+    s = parse_script("Épisode 1 : Lucas découvre un coffre au fond du port de La Rochelle.\n\n"
+                     "Épisode 2 : Lucas cherche l'origine du trésor caché dans le coffre.\n\n"
+                     "Épisode 3 : Inès disparaît. Une explosion détruit le bateau de Lucas.\n")
+    reps = []
+    for ep in (3, 1, 2):  # ordre des fichiers ≠ ordre du récit
+        reps.append(RushReport(asset_id=f"a{ep}", name=f"ELDORADO-EP{ep}", duration=3000,
+                               shots=[Shot(100, 104, activity=0.5, peak=-15, score=0.5)],
+                               transcript=[Segment(1500, 1503, "Tu ne comprends pas ce qui se passe ici !")]))
+    ms = build_moments(reps, s)
+    pos = {m.asset_id: m.position for m in ms if m.kind == "dialogue"}
+    assert pos["a1"] < pos["a2"] < pos["a3"]
+    assert all(m.act == (1 if m.asset_id == "a1" else 2 if m.asset_id == "a2" else 3)
+               for m in ms if m.kind == "dialogue")

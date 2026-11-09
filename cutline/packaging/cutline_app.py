@@ -46,7 +46,7 @@ def selftest(log_path: str) -> int:
                                       script=str(Path(tmp) / "rushes_scenario.fountain"), title="Selftest",
                                       duration=12, transcribe=False, avid_version=True, width=640, height=360),
                             log=lines.append)
-            ok = all(p.exists() and p.stat().st_size > 0 for p in files.values())
+            ok = all(p.exists() and p.stat().st_size > 0 for k, p in files.items() if k != "folder")
         lines.append("SELFTEST OK" if ok else "SELFTEST ÉCHEC : fichiers manquants")
         code = 0 if ok else 1
     except Exception:  # noqa: BLE001

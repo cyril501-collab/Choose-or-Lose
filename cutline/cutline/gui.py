@@ -105,6 +105,13 @@ class App(tk.Tk):
                      foreground="#1E1F24")
         st.map("Go.TButton", background=[("active", "#F2B65A"), ("disabled", "#6B5A3E")])
         st.configure("TEntry", fieldbackground="#FFFFFF", foreground="#111111")
+        for w in ("TSpinbox", "TCombobox"):
+            st.configure(w, fieldbackground="#FFFFFF", foreground="#111111", background="#DDDDDD",
+                         arrowcolor="#111111", selectbackground="#FFFFFF", selectforeground="#111111")
+            st.map(w, fieldbackground=[("readonly", "#FFFFFF")], foreground=[("readonly", "#111111")],
+                   selectbackground=[("readonly", "#FFFFFF")], selectforeground=[("readonly", "#111111")])
+        self.option_add("*TCombobox*Listbox.foreground", "#111111")
+        self.option_add("*TCombobox*Listbox.background", "#FFFFFF")
         st.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=PANEL)
 
     # ------------------------------------------------------------------ layout
@@ -215,6 +222,10 @@ class App(tk.Tk):
         # Bas : bouton, progression, journal
         self.go = ttk.Button(bottom, text="▶  MONTER", style="Go.TButton", command=self._start)
         self.go.pack(fill="x")
+        self.open_btn = ttk.Button(bottom, text="📂  Ouvrir le dossier du résultat", state="disabled",
+                                   command=lambda: self.last_folder and open_folder(self.last_folder))
+        self.open_btn.pack(fill="x", pady=(6, 0))
+        self.last_folder: Path | None = None
         self.bar = ttk.Progressbar(bottom, maximum=1.0, mode="determinate")
         self.bar.pack(fill="x", pady=6)
         self.logbox = tk.Text(bottom, height=7, bg=PANEL, fg=INK, relief="flat", font=("Courier", 10),
@@ -306,7 +317,9 @@ class App(tk.Tk):
                     self.bar["value"] = data
                 elif kind == "done":
                     self._finish()
-                    out = Path(self.out_dir.get())
+                    out = data.pop("folder")
+                    self.last_folder = out
+                    self.open_btn.configure(state="normal")
                     names = "\n".join(f"• {p.name}" for p in data.values())
                     messagebox.showinfo("Montage terminé",
                                         f"Les fichiers ont été créés dans :\n{out}\n\n{names}\n\n"

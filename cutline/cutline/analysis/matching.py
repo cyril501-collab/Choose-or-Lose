@@ -6,6 +6,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from difflib import SequenceMatcher
 import math
+import re
 
 from .rushes import RushReport
 from .script import Scene, Script, normalize, score_line, text_intensity, tokenize
@@ -75,6 +76,39 @@ def assign_scene(report: RushReport, script: Script) -> Scene | None:
     return best if best_sc >= 0.2 else None
 
 
+_EP_RE = re.compile(r"(?:^|[^A-Za-z])(?:EP|E|EPISODE|ÉPISODE)[ _\-.]?(\d{1,3})(?!\d)", re.IGNORECASE)
+
+
+def episode_number(name: str) -> int | None:
+    m = _EP_RE.search(name)
+    return int(m.group(1)) if m else None
+
+
+def _story_order(reports: list[RushReport]) -> dict[str, int]:
+    """Ordre des rushes dans le récit : numéro d'épisode s'il existe, sinon ordre alphabétique."""
+    ranked = sorted(reports, key=lambda r: (episode_number(r.name) is None, episode_number(r.name) or 0, r.name))
+    return {r.asset_id: i for i, r in enumerate(ranked)}
+
+
+def _act(position: float) -> int:
+    return 1 if position < 0.25 else (2 if position < 0.75 else 3)
+
+
+def _local_scene(rep: RushReport, t: float, script: Script, candidates: list[Scene],
+                 window: float = 45.0) -> Scene | None:
+    """Séquence du récit correspondant à l'instant t d'un long rush (texte prononcé autour de t)."""
+    text = rep.text_between(max(0.0, t - window), t + window)
+    if len(text.split()) < 8:
+        return None
+    tv = Counter(tokenize(text))
+    best, best_sc = None, 0.0
+    for s in candidates:
+        sc = _cosine(tv, Counter(tokenize(s.text)))
+        if sc > best_sc:
+            best, best_sc = s, sc
+    return best if best_sc >= 0.12 else None
+
+
 def build_moments(reports: list[RushReport], script: Script | None = None,
                   best_take_only: bool = True) -> list[Moment]:
     """Transforme les rapports de dérushage en moments notés, rattachés au scénario si fourni."""
@@ -82,8 +116,27 @@ def build_moments(reports: list[RushReport], script: Script | None = None,
     mains = script.main_characters if script else []
     all_lines = script.all_lines() if script else []
 
+    order = _story_order(reports)
+    n_rushes = max(1, len(reports))
     for rep in reports:
         scene = assign_scene(rep, script) if script else None
+        ep = episode_number(rep.name)
+        long_rush = rep.duration > 300 and not rep.slate.get("scene")
+        candidates: list[Scene] = []
+        if script and long_rush:
+            # Résumé de série « Épisode N » : on se limite aux passages de cet épisode
+            candidates = [s for s in script.scenes if ep is not None and s.episode == str(ep)] or script.scenes
+
+        def place(m: Moment, t: float) -> None:
+            """Situe un moment dans le récit (séquence du scénario ou ordre des épisodes)."""
+            sc = _local_scene(rep, t, script, candidates) if candidates else None
+            sc = sc or (scene if not long_rush else None)
+            if sc:
+                m.scene, m.position, m.act, m.intensity = sc.number, sc.position, sc.act, sc.intensity
+            else:
+                m.position = round((order[rep.asset_id] + min(1.0, t / max(1.0, rep.duration))) / n_rushes, 4)
+                m.act = _act(m.position)
+
         interview = bool(rep.slate.get("interview"))
         take_bonus = 1.15 if rep.slate.get("circled") else 1.0
         take = "-".join(str(rep.slate[k]) for k in ("scene", "shot", "take") if k in rep.slate)
@@ -108,8 +161,7 @@ def build_moments(reports: list[RushReport], script: Script | None = None,
                 m.intensity = sc.intensity
                 m.score = (line.score * (0.6 + 0.4 * match_sc) + 0.5 * sc.importance) * take_bonus
             else:
-                if scene:
-                    m.scene, m.position, m.act, m.intensity = scene.number, scene.position, scene.act, scene.intensity
+                place(m, seg.start)
                 from .script import DialogueLine
                 m.score = score_line(DialogueLine(m.speaker or "?", seg.text), mains) * 0.8
                 if interview:
@@ -126,10 +178,10 @@ def build_moments(reports: list[RushReport], script: Script | None = None,
                 continue  # le plan d'interview sert via les sonores
             m = Moment(rep.asset_id, shot.start, shot.end, kind, score=shot.score,
                        activity=shot.activity, text=shot.text, take=take)
-            if scene:
-                m.scene, m.position, m.act = scene.number, scene.position, scene.act
-                m.intensity = scene.intensity
-                m.score = shot.score * (1 + 0.5 * scene.importance) + 0.1 * text_intensity(" ".join(scene.action))
+            place(m, shot.start)
+            sc = script.scene(m.scene) if (script and m.scene) else None
+            if sc:
+                m.score = shot.score * (1 + 0.5 * sc.importance) + 0.1 * text_intensity(" ".join(sc.action))
             if shot.speech_ratio > 0.3:
                 m.tags.append("speech")
             moments.append(m)
