@@ -12,7 +12,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from ..core.media import ffmpeg_bin, run
+from ..core.media import ffmpeg_bin, ffmpeg_major, run
 from ..core.model import Clip, Project, Timeline
 
 FONT_CANDIDATES = [
@@ -246,7 +246,8 @@ def build_command(project: Project, tl: Timeline, output: str | Path, settings: 
     cmd = [ffmpeg_bin(), "-hide_banner", "-y", "-loglevel", "error"]
     for inp in g.inputs:
         cmd += inp
-    cmd += ["-filter_complex_script", script.name, "-map", "[vout]", "-map", "[aout]",
+    graph_opt = ["-/filter_complex", script.name] if ffmpeg_major() >= 7 else ["-filter_complex_script", script.name]
+    cmd += [*graph_opt, "-map", "[vout]", "-map", "[aout]",
             "-r", rate, *CODECS.get(settings.codec, CODECS["h264"]),
             "-c:a", "pcm_s24le" if settings.codec in ("prores", "dnxhr") else "aac",
             *([] if settings.codec in ("prores", "dnxhr") else ["-b:a", settings.audio_bitrate]),

@@ -32,7 +32,10 @@ def selftest(log_path: str) -> int:
             import faster_whisper  # noqa: F401
             from cutline.analysis.transcript import resolve_model
             from faster_whisper import WhisperModel
-            WhisperModel(resolve_model("small"), device="cpu", compute_type="int8")  # charge les DLL
+            import numpy as np
+            wm = WhisperModel(resolve_model("small"), device="cpu", compute_type="int8")  # charge les DLL
+            segs, _ = wm.transcribe(np.zeros(16000 * 3, dtype=np.float32), language="fr", vad_filter=True)
+            list(segs)  # exécute réellement la reconnaissance (VAD + décodage)
             lines.append(f"whisper: OK, modèle = {resolve_model('small')}")
         except Exception as exc:  # noqa: BLE001
             lines.append(f"whisper: INDISPONIBLE ({exc!r})")

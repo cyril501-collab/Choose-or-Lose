@@ -62,6 +62,30 @@ def run(cmd: list[str], check: bool = True, cwd: str | Path | None = None) -> su
     return proc
 
 
+_VERSION: dict[str, int] = {}
+
+
+def ffmpeg_major() -> int:
+    """Version majeure de FFmpeg (certaines options changent de nom entre versions)."""
+    if "major" not in _VERSION:
+        import re
+        out = run([ffmpeg_bin(), "-hide_banner", "-version"], check=False).stdout
+        m = re.search(r"ffmpeg version n?(\d+)\.", out)
+        _VERSION["major"] = int(m.group(1)) if m else 99  # versions de développement = récentes
+    return _VERSION["major"]
+
+
+def decode_audio_16k(path: str | Path):
+    """Décode la piste son en mono 16 kHz flottant (format attendu par la reconnaissance vocale)."""
+    import numpy as np
+    extra = {"creationflags": 0x08000000} if os.name == "nt" else {}
+    proc = subprocess.run([ffmpeg_bin(), "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", "16000",
+                           "-f", "f32le", "-"], capture_output=True, **extra)
+    if proc.returncode != 0:
+        raise MediaError(proc.stderr.decode("utf-8", "replace")[-800:])
+    return np.frombuffer(proc.stdout, dtype=np.float32)
+
+
 def probe(path: str | Path) -> dict:
     proc = run([ffprobe_bin(), "-v", "error", "-print_format", "json", "-show_format",
                 "-show_streams", str(path)])

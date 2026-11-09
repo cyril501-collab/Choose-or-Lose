@@ -106,6 +106,7 @@ def test_news(tmp_path):
         make_clip(folder / f"illus_{k}.mp4", 12, pat, 500, 0.1, cut_at=6)
     ses = Session(name="JT", width=640, height=360)
     ses.import_folder(folder)
+    ses.derush(use_asr=False)
     vo = ["La tempête a frappé le port de Brume dans la nuit. Des dizaines de bateaux ont été endommagés.",
           "Sur les quais, les pêcheurs constatent l'ampleur des dégâts.",
           "La mairie promet une aide rapide."]

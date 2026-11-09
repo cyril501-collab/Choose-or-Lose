@@ -112,5 +112,9 @@ def transcribe(media_path: str | Path, language: str | None = "fr", model: str =
     wm = _MODEL_CACHE.get(model)
     if wm is None:
         wm = _MODEL_CACHE[model] = WhisperModel(resolve_model(model), device="cpu", compute_type="int8")
-    segs, _ = wm.transcribe(str(media_path), language=language, vad_filter=True)
+    from ..core.media import decode_audio_16k
+    audio = decode_audio_16k(media_path)  # décodage par FFmpeg : évite les soucis de PyAV
+    if audio.size == 0:
+        return []
+    segs, _ = wm.transcribe(audio, language=language, vad_filter=True)
     return [Segment(s.start, s.end, s.text.strip()) for s in segs if s.text.strip()]
